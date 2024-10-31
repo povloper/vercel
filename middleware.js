@@ -1,41 +1,62 @@
+// middleware.ts
 import { NextResponse } from 'next/server';
 import subdomains from './subdomains.json';
 
+const i18nConfigs = {
+  test: {
+    defaultLocale: 'ca',
+    locales: ['ca', 'es', 'en']
+  },
+  test2: {
+    defaultLocale: 'ca',
+    locales: ['ca', 'es', 'en']
+  }
+};
 
 export const config = {
   matcher: [
     "/((?!api/|_next/|_static/|_vercel|[\\w-]+\\.\\w+).*)",
   ],
 };
+
 export default async function middleware(req) {
   const url = req.nextUrl;
   const hostname = req.headers.get("host");
+  const pathname = url.pathname;
 
-  // Define los dominios permitidos (localhost y dominio para producción)
-  // Define allowed Domains (localhost and production domain)
-  const allowedDomains = ["localhost:3000", "tudominio.com"];
-
-  // Verificamos si el hostname existe en los dominios permitidos
-  // Verify if hostname exist in allowed domains
-  const isAllowedDomain = allowedDomains.some(domain => hostname.includes(domain));
-
-  // Extraemos el posible subdominio en la URL
-  // Extract the possible subdomain in the URL
+  // Extraiem el subdomini
   const subdomain = hostname.split('.')[0];
 
-  // Si estamos en un dominio habilitado y no es un subdominio, permitimos la solicitud.
-  // If we stay in a allowed domain and its not a subdomain, allow the request.
-  if (isAllowedDomain && !subdomains.some(d => d.subdomain === subdomain)) {
+  // Comprovem si és un subdomini vàlid
+  const subdomainData = subdomains.find(d => d.subdomain === subdomain);
+  
+  // Si no és un subdomini vàlid, redirigim a la pàgina principal o 404
+  if (!subdomainData) {
     return NextResponse.next();
   }
 
-  const subdomainData = subdomains.find(d => d.subdomain === subdomain);
+  // Obtenim la configuració d'idiomes pel subdomini
+  const i18nConfig = i18nConfigs[subdomain];
 
-  if (subdomainData) {
-    // Rewrite the URL in the dynamic route based in the subdomain
-    // Reescribe la URL a una ruta dinámica basada en el subdominio
-    return NextResponse.rewrite(new URL(`/${subdomain}${url.pathname}`, req.url));
+  // Si estem a la ruta arrel del subdomini, redirigim a l'idioma per defecte
+  if (pathname === '/') {
+    return NextResponse.redirect(
+      new URL(`/${i18nConfig.defaultLocale}`, req.url)
+    );
   }
 
-  return new Response(null, { status: 404 });
+  // Comprovem si la ruta ja té un locale
+  const pathnameHasLocale = i18nConfig.locales.some(locale => 
+    pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
+  );
+
+  // Si no té locale, redirigim al locale per defecte
+  if (!pathnameHasLocale) {
+    return NextResponse.rewrite(
+      new URL(`/${subdomain}/${i18nConfig.defaultLocale}${pathname}`, req.url)
+    );
+  }
+
+  // Si ja té locale, mantenim la ruta amb el prefix del subdomini
+  return NextResponse.rewrite(new URL(`/${subdomain}${pathname}`, req.url));
 }
