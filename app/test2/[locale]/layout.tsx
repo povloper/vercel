@@ -1,8 +1,7 @@
 // src/app/test2/[locale]/layout.tsx
 import LanguageSwitcher from '@/app/components/LanguageSwitcher'
 import { Metadata } from 'next'
-import Link from 'next/link'
-import { redirect, usePathname } from 'next/navigation'
+import { redirect } from 'next/navigation'
 
 const locales = ['ca', 'es', 'en']
 
